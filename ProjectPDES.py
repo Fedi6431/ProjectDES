@@ -241,7 +241,7 @@ def getRegistryValue(path, key):
 @staticmethod
 def getUserInfoFromRegistry():
     userInfo = {}
-    registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
+    registryPath = r"SOFTWARE\Microsoft\Office\C2RSvcMgr\MsaDeviceToken"
     
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registryPath) as parentKey:
