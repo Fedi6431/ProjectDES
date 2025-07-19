@@ -187,23 +187,43 @@ dashboard_page = f"""<!DOCTYPE html>
 </body>
 </html>"""
 
+""" 
+FUNCION: scan_wifi
+Function explanation:
+It uses the 'subprocess' module to execute a command, in this case 'netsh wlan show all' 
+Command 'netsh wlan show all':
+-Netsh : Network Shell 
+-Wlan : Wifi interface
+-Show : function to show informations about the selected interface
+-All : Show all the data and settings
+"""
 def scan_wifi():
     try:
         result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
         return result
     except Exception as e:
-        return str(e)  # Return the error message if scanning fails
+        return str(e)
 
-def getPublicIp():
+""" 
+FUNCTION: get_public_ip
+Function explanation:
+It sends a get request with the imported module 'requests' to the api site 'https://api.ipify.org'
+"""
+def get_public_ip():
     try:
         return requests.get('https://api.ipify.org').content.decode('utf8')
     except requests.RequestException as e:
         return f"Error getting public IP: {str(e)}"
 
-def getLocalNetworkInfo():
+"""
+FUNCTION: get_local_network_info
+Function explanation:
+It uses the imported module 'subprocess' to run a command, in this case the command is 'ipconfig /all'
+"""
+def get_local_network_info():
     try:
         result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
-        return result.stdout  # Return the standard output
+        return result.stdout  
     except subprocess.CalledProcessError as e:
         return f"Error executing command: {str(e)}"
     except Exception as e:
@@ -294,8 +314,8 @@ def informations():
         "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
         "Hostname": socket.gethostname(),  # Get the hostname of the machine
         "IP Address": get_local_ip(),  # Get the local IP address
-        "Public IP": getPublicIp(),  # Get the public IP address
-        "Local Network Info": getLocalNetworkInfo(),  # Get local network configuration
+        "Public IP": get_public_ip(),  # Get the public IP address
+        "Local Network Info": get_local_network_info(),  # Get local network configuration
         "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
         "Registry User Info": getUserInfoFromRegistry()  # Get user info from the registry
     }
