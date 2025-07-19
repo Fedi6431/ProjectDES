@@ -197,6 +197,7 @@ Command 'netsh wlan show all':
 -Show : function to show informations about the selected interface
 -All : Show all the data and settings
 """
+#=^.^=
 def scan_wifi():
     try:
         result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
@@ -209,6 +210,7 @@ FUNCTION: get_public_ip
 Function explanation:
 It sends a get request with the imported module 'requests' to the api site 'https://api.ipify.org'
 """
+#=^.^=
 def get_public_ip():
     try:
         return requests.get('https://api.ipify.org').content.decode('utf8')
@@ -220,6 +222,7 @@ FUNCTION: get_local_network_info
 Function explanation:
 It uses the imported module 'subprocess' to run a command, in this case the command is 'ipconfig /all'
 """
+#=^.^=
 def get_local_network_info():
     try:
         result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
@@ -228,8 +231,12 @@ def get_local_network_info():
         return f"Error executing command: {str(e)}"
     except Exception as e:
         return f"An error occurred: {str(e)}"
-
-def getRegistryValue(path, key):
+"""
+FUNCTION: get_registry_values
+Function explanation:
+Get registry values from the assigned path and the assigned key by the registry editor (regedit)
+"""
+def get_registry_values(path, key):
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as keyHandle:
             return winreg.QueryValueEx(keyHandle, key)[0]
@@ -238,7 +245,10 @@ def getRegistryValue(path, key):
     except Exception as e:
         return str(e)
 
-def getUserInfoFromRegistry():
+"""FUNCTION: get_user_info_from_registry
+Function explanation:
+Uses the 'get_registry_values' function to retrieve values and store it in variables"""
+def get_user_info_from_registry():
     userInfo = {}
     registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
     try:
@@ -249,13 +259,13 @@ def getUserInfoFromRegistry():
                     subkeyName = winreg.EnumKey(parentKey, i)
                     subkeyPath = f"{registryPath}\\{subkeyName}"
                     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkeyPath) as subkey:
-                        email = getRegistryValue(subkeyPath, "EmailAddress")
+                        email = get_registry_values(subkeyPath, "EmailAddress")
                         if email:
                             userInfo["EmailAddress"] = email
-                        firstName = getRegistryValue(subkeyPath, "FirstName")
+                        firstName = get_registry_values(subkeyPath, "FirstName")
                         if firstName:
                             userInfo["FirstName"] = firstName
-                        lastName = getRegistryValue(subkeyPath, "LastName")
+                        lastName = get_registry_values(subkeyPath, "LastName")
                         if lastName:
                             userInfo["LastName"] = lastName
                         if len(userInfo) == 3:
@@ -317,7 +327,6 @@ def informations():
         "Public IP": get_public_ip(),  # Get the public IP address
         "Local Network Info": get_local_network_info(),  # Get local network configuration
         "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
-        "Registry User Info": getUserInfoFromRegistry()  # Get user info from the registry
     }
     return jsonify(system_info)
 
