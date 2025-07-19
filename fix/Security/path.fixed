@@ -3,3 +3,5 @@
 /download.png
 /image.png
 /
+
+FIXED: added cookies to verify if the user is authenicated
