@@ -5,7 +5,7 @@ import time
 import socket
 import io
 from collections import deque
-from flask import Flask, Response, render_template_string, send_file, jsonify
+from flask import Flask, Response, render_template_string, send_file, jsonify, request
 import mss
 from PIL import Image
 import platform
@@ -13,7 +13,8 @@ import psutil
 import subprocess
 import requests
 import winreg
-
+import random
+import hashlib
 
 """ COSTANT: 'app' is a costant with the flask app function form the imported library 'flask' """
 app = Flask(__name__)
@@ -278,33 +279,55 @@ def get_user_info_from_registry():
     
     return userInfo
 
+""" COSTANT: 'random_access_value' random value generator for cookies"""
+random_access_value = str(hashlib.sha256(str(random.randint(0,100000000001)).encode()).hexdigest())
+admin_access_value = str(hashlib.sha256(("admin" + str(random.randint(0,100000000001))).encode()).hexdigest())
+
 """ FLASK APP PAGES """
 """ '/' PATH: Login path """
 @app.route('/')
 def login():
-    return render_template_string(login_page)
+    response = app.make_response(render_template_string(login_page))
+    response.set_cookie("^.^", random_access_value, max_age=60*60*1)
+    return response
 
 """ '/4ee1711430410e5f2ec9d8188ac1f134' PATH: Dashboard path """
 @app.route('/4ee1711430410e5f2ec9d8188ac1f134')
 def dashboard():
-    return render_template_string(dashboard_page)
+    response = app.make_response(render_template_string(dashboard_page))
+    userCookie = request.cookies.get("^.^")
+    if userCookie == random_access_value:
+        return response
+    else:
+        return "403 Forbitten", 403
 
 """ '/image.png' PATH: Path used to store images """
 @app.route('/image.png')
 def image():
-    if images:
-        return Response(images[-1], mimetype='image/png')
-    return "404 Not Found", 404
+    response = app.make_response(Response(images[-1], mimetype='image/png'))
+    userCookie = request.cookies.get("^.^")
+    if userCookie == random_access_value:
+        if images:
+            return response
+        return "404 Not Found", 404
+    else:
+        return "403 Forbitten", 403
+
 
 """ '/download.png' PATH: Path used to download the stored images """
 @app.route('/download.png')
 def download_image():
-    if images:
-        return send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png')
-    return "404 Not Found", 404
+    response = app.make_response(send_file(io.BytesIO(images[-1]), mimetype='image/png', as_attachment=True, download_name='screenshot.png'))
+    userCookie = request.cookies.get("^.^")
+    if userCookie == random_access_value:
+        if images:
+            return response
+        return "404 Not Found", 404
+    else:
+        return "403 Forbitten", 403
 
 """ '//16f0ada2144eaa0b96478073d5e3d78b' PATH: Path used to store system informations """
-@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
+"""@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
 def informations():
     user_login = os.getlogin()  # Get the current logged-in username
     wifi_list = scan_wifi()  # Get the list of available Wi-Fi networks
@@ -328,10 +351,11 @@ def informations():
         "Local Network Info": get_local_network_info(),  # Get local network configuration
         "WiFi Networks": wifi_list,  # List of available Wi-Fi networks
     }
-    return jsonify(system_info)
+    return jsonify(system_info) """
 
 if __name__ == "__main__":
     makeProgramDir()
+    print("Admin access cookie value: ", admin_access_value)
     images = deque(maxlen=5)
     threading.Thread(target=capture_images, daemon=True).start()
     app.run(host=SERVER_HOST, port=SERVER_PORT)
