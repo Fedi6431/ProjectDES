@@ -268,7 +268,8 @@ dashboard_page = f"""<!DOCTYPE html>
 </html>
 """
 
-#######################################################################
+""" COSTANT: 'info_page' is a costant with the code of the html page with the target machine informations"""
+#=^.^=
 info_page = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
